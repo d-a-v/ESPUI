@@ -981,7 +981,7 @@ void ESPUIClass::jsonDom(AsyncWebSocketClient* client)
         if (control->type == ControlType::Option)
         {
             const auto& parentControl = ESPUI.getControl(control->parentControl);
-            if (parentControl->value == control->value)
+            if (parentControl && parentControl->value == control->value)
             {
                 item["selected"] = "selected";
             }
