@@ -779,8 +779,7 @@ void ESPUIClass::updateControl(Control* control, int clientId)
     // This is a hacky workaround because ESPAsyncWebServer does not have a
     // function like this and it's clients array is private
     int tryId = 0;
-
-    for (int count = 0; count < this->ws->count();)
+    for (int count = 0; tryId < this->ws->count() && count < this->ws->count();)
     {
         if (this->ws->hasClient(tryId))
         {
@@ -969,6 +968,7 @@ void ESPUIClass::jsonDom(AsyncWebSocketClient* client)
         item["label"] = control->label;
         item["value"] = String(control->value);
         item["color"] = (int)control->color;
+        item["visible"] = control->visible;
 
         if (control->parentControl != Control::noParent)
         {
@@ -979,7 +979,8 @@ void ESPUIClass::jsonDom(AsyncWebSocketClient* client)
         // "selected" to <option>
         if (control->type == ControlType::Option)
         {
-            if (ESPUI.getControl(control->parentControl)->value == control->value)
+            const auto& parentControl = ESPUI.getControl(control->parentControl);
+            if (parentControl->value == control->value)
             {
                 item["selected"] = "selected";
             }
