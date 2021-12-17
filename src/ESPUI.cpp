@@ -779,7 +779,8 @@ void ESPUIClass::updateControl(Control* control, int clientId)
     // This is a hacky workaround because ESPAsyncWebServer does not have a
     // function like this and it's clients array is private
     int tryId = 0;
-    for (int count = 0; tryId < this->ws->count() && count < this->ws->count();)
+
+    for (int count = 0; tryId < (int)this->ws->count() && count < (int)this->ws->count();)
     {
         if (this->ws->hasClient(tryId))
         {
@@ -917,7 +918,7 @@ void ESPUIClass::addGraphPoint(uint16_t id, int nValue, int clientId)
     // function like this and it's clients array is private
     int tryId = 0;
 
-    for (int count = 0; count < this->ws->count();)
+    for (int count = 0; tryId < (int)this->ws->count() && count < (int)this->ws->count();)
     {
         if (this->ws->hasClient(tryId))
         {
