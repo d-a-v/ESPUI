@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <functional>
 
 enum ControlType : uint8_t
 {
@@ -53,8 +54,8 @@ public:
     ControlType type;
     uint16_t id; // just mirroring the id here for practical reasons
     const char* label;
-    void (*callback)(Control*, int);
-    void (*extendedCallback)(Control*, int, void*);
+    std::function<void(Control*, int)> callback;
+    std::function<void(Control*, int, void*)> extendedCallback;
     void* user;
     String value;
     ControlColor color;
@@ -72,7 +73,7 @@ public:
 
     Control(ControlType type, 
             const char* label, 
-            void (*callback)(Control*, int, void*), 
+            std::function<void(Control*, int, void*)> callback,
             void* UserData,
             const String& value, 
             ControlColor color, 
