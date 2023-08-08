@@ -3,7 +3,7 @@
 static uint16_t idCounter = 0;
 static const String ControlError = "*** ESPUI ERROR: Could not transfer control ***";
 
-Control::Control(ControlType type, const char* label, void (*callback)(Control*, int, void*), void* UserData,
+Control::Control(ControlType type, const char* label, std::function<void(Control*, int, void*)> callback, void* UserData,
     const String& value, ControlColor color, bool visible, uint16_t parentControl)
     : type(type),
       label(label),

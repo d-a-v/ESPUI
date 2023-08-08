@@ -65,9 +65,9 @@ void buttonCallback(Control* sender, int type)
     }
 }
 
-void buttonExample(Control* sender, int type, void* param)
+void buttonExample(Control* sender, int type, long param)
 {
-    Serial.println(String("param: ") + String(long(param)));
+    Serial.println(String("param: ") + String(param));
     switch (type)
     {
     case B_DOWN:
@@ -264,8 +264,15 @@ void setup(void)
     millisLabelId = ESPUI.addControl(ControlType::Label, "Millis:", "0", ControlColor::Emerald, Control::noParent);
     button1 = ESPUI.addControl(
         ControlType::Button, "Push Button", "Press", ControlColor::Peterriver, Control::noParent, &buttonCallback);
+#if 0
+    // old way for passing user data
     ESPUI.addControl(
         ControlType::Button, "Other Button", "Press", ControlColor::Wetasphalt, Control::noParent, &buttonExample, (void*)19);
+#else
+    // use lambda : call any function including methods when needed
+    ESPUI.addControl(
+        ControlType::Button, "Other Button", "Press", ControlColor::Wetasphalt, Control::noParent, [](Control* c, int v){ buttonExample(c, v, 19); });
+#endif
     ESPUI.addControl(
         ControlType::PadWithCenter, "Pad with center", "", ControlColor::Sunflower, Control::noParent, &padExample);
     ESPUI.addControl(ControlType::Pad, "Pad without center", "", ControlColor::Carrot, Control::noParent, &padExample);
