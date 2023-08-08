@@ -23,7 +23,7 @@ static String heapInfo(const __FlashStringHelper* mode)
 #if ESP8266
 
     uint32_t hfree;
-    uint16_t hmax;
+    uint32_t hmax;
     uint8_t hfrag;
     result.reserve(128);
 
