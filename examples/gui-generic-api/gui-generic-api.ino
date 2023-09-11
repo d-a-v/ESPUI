@@ -11,13 +11,15 @@ DNSServer dnsServer;
 // esp8266
 #include <ESP8266WiFi.h>
 #include <umm_malloc/umm_heap_select.h>
+#ifndef CORE_MOCK
 #ifndef MMU_IRAM_HEAP
 #warning Try MMU option '2nd heap shared' in 'tools' IDE menu (cf. https://arduino-esp8266.readthedocs.io/en/latest/mmu.html#option-summary)
 #warning use decorators: { HeapSelectIram doAllocationsInIRAM; ESPUI.addControl(...) ... } (cf. https://arduino-esp8266.readthedocs.io/en/latest/mmu.html#how-to-select-heap)
 #warning then check http://<ip>/heap
 #endif // MMU_IRAM_HEAP
-#if !defined(DEBUG_ESP_OOM) && !defined(CORE_MOCK)
+#if !defined(DEBUG_ESP_OOM)
 #error on ESP8266 and ESPUI, you must define OOM debug option when developping
+#endif
 #endif
 #endif
 
@@ -65,10 +67,34 @@ void buttonCallback(Control* sender, int type)
     }
 }
 
-void buttonExample(Control* sender, int type, long param)
+void buttonExample(Control* sender, int type, void* param)
 {
     Serial.print("param: ");
-    Serial.println(long(param));
+    Serial.println((long)param);
+    switch (type)
+    {
+    case B_DOWN:
+        Serial.println("Status: Start");
+        ESPUI.updateControlValue(status, "Start");
+
+        ESPUI.getControl(button1)->color = ControlColor::Carrot;
+        ESPUI.updateControl(button1);
+        break;
+
+    case B_UP:
+        Serial.println("Status: Stop");
+        ESPUI.updateControlValue(status, "Stop");
+
+        ESPUI.getControl(button1)->color = ControlColor::Peterriver;
+        ESPUI.updateControl(button1);
+        break;
+    }
+}
+
+void button2Example(Control* sender, int type, int param)
+{
+    Serial.print("param: ");
+    Serial.println(param);
     switch (type)
     {
     case B_DOWN:
@@ -265,15 +291,60 @@ void setup(void)
     millisLabelId = ESPUI.addControl(ControlType::Label, "Millis:", "0", ControlColor::Emerald, Control::noParent);
     button1 = ESPUI.addControl(
         ControlType::Button, "Push Button", "Press", ControlColor::Peterriver, Control::noParent, &buttonCallback);
-#if 0
-    // old way for passing user data
+
+    // legacy and deprecated way for extended callback:
+    // (check new calls below)
     ESPUI.addControl(
         ControlType::Button, "Other Button", "Press", ControlColor::Wetasphalt, Control::noParent, &buttonExample, (void*)19);
-#else
-    // use lambda : call any function including methods when needed
-    ESPUI.addControl(
-        ControlType::Button, "Other Button", "Press", ControlColor::Wetasphalt, Control::noParent, [](Control* c, int v){ buttonExample(c, v, 19); });
-#endif
+
+    // Lambda functions example #1:
+    // use lambda to call extended method/function (with any parameter interface)
+    auto button2 = ESPUI.addControl(
+        ControlType::Button, "Other lambda Button", "Press", ControlColor::Wetasphalt, Control::noParent,
+          //[](Control* sender, int type){ buttonExample(sender, type, (void*)19); }
+            [](Control* sender, int type){ button2Example(sender, type, 19); }
+    );
+
+    // Lambda functions example #2:
+    // use lambda to code callback without use of external function
+    // (variable button2 is not global, it must be captured if one needs to update it)
+    // NOTE: any callback can be a legacy normal or extended function, or a lambda
+    ESPUI.addControl(ControlType::Button, "Other self-contained lambda Button", "Press", ControlColor::Wetasphalt, Control::noParent,
+        [button2](Control* sender, int type)
+        {
+            Serial.print("Button 3 pressed");
+            switch (type)
+            {
+            case B_DOWN:
+                Serial.println("Button 3: Status: Start");
+                ESPUI.updateControlValue(status, "Start");
+
+                // button3 self-updates
+                sender->color = ControlColor::Carrot;
+                ESPUI.updateControl(sender);
+
+                // captured button2 is also updated
+                ESPUI.getControl(button2)->color = ControlColor::Carrot;
+                ESPUI.updateControl(button2);
+
+                break;
+
+            case B_UP:
+                Serial.println("Button 3: Status: Stop");
+                ESPUI.updateControlValue(status, "Stop");
+
+                // button3 self-updates
+                sender->color = ControlColor::Wetasphalt;
+                ESPUI.updateControl(sender);
+
+                // captured button2 is also updated
+                ESPUI.getControl(button2)->color = ControlColor::Wetasphalt;
+                ESPUI.updateControl(button2);
+
+                break;
+            }
+        });
+
     ESPUI.addControl(
         ControlType::PadWithCenter, "Pad with center", "", ControlColor::Sunflower, Control::noParent, &padExample);
     ESPUI.addControl(ControlType::Pad, "Pad without center", "", ControlColor::Carrot, Control::noParent, &padExample);
