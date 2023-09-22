@@ -1,7 +1,11 @@
 #pragma once
 
 #include <Arduino.h>
+#ifdef ESP32
 #include <ESPAsyncWebServer.h>
+#else
+#include <emuESPAsyncWebServer.h>
+#endif
 #include <ArduinoJson.h>
 #include "ESPUIclientFsm.h"
 #include "ESPUIcontrol.h"

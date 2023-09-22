@@ -2,8 +2,6 @@
 
 #include <functional>
 
-#include <ESPAsyncWebServer.h>
-
 #include "dataControlsJS.h"
 #include "dataGraphJS.h"
 #include "dataIndexHTML.h"
