@@ -17,7 +17,12 @@
 	#include <LittleFS.h>
 #endif
 #include <map>
+
+#ifdefdef ESP32
 #include <ESPAsyncWebServer.h>
+#else
+#include <emuESPAsyncWebServer.h>
+#endif
 
 #include "ESPUIcontrol.h"
 #include "ESPUIclient.h"
@@ -31,7 +36,7 @@
 #include <ArduinoOTA.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
-#include <ESPAsyncTCP.h>
+#include <emuESPAsyncTCP.h>
 #include <Hash.h>
 
 #define FILE_WRITE "w"
