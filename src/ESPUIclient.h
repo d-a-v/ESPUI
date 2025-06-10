@@ -47,20 +47,25 @@ protected:
     // bool        NeedsNotification() { return pCurrentFsmState != &fsm_EspuiClient_state_Idle_imp; }
 
     bool        CanSend();
-    void        FillInHeader(ArduinoJson::DynamicJsonDocument& document);
-    uint32_t    prepareJSONChunk(uint16_t startindex, DynamicJsonDocument& rootDoc, bool InUpdateMode);
-    bool        SendControlsToClient(uint16_t startidx, ClientUpdateType_t TransferMode);
+    void        FillInHeader(ArduinoJson::JsonDocument& document);
+    uint32_t    prepareJSONChunk(uint16_t startindex, JsonDocument& rootDoc, bool InUpdateMode, String value);
+    bool        SendControlsToClient(uint16_t startidx, ClientUpdateType_t TransferMode, String FragmentRequest);
 
     bool        SendClientNotification(ClientUpdateType_t value);
+
+private:
+    uint32_t    CurrentSyncID = 0;
+    uint32_t    NextSyncID = 0;
 
 public:
                 ESPUIclient(AsyncWebSocketClient * _client);
                 ESPUIclient(const ESPUIclient & source);
     virtual     ~ESPUIclient();
     void        NotifyClient(ClientUpdateType_t value);
-    void        onWsEvent(AwsEventType type, void* arg, uint8_t* data, size_t len);
+    bool        onWsEvent(AwsEventType type, void* arg, uint8_t* data, size_t len);
     bool        IsSyncronized();
     uint32_t    id() { return client->id(); }
     void        SetState(ClientUpdateType_t value);
-    bool        SendJsonDocToWebSocket(ArduinoJson::DynamicJsonDocument& document);
+    bool        SendJsonDocToWebSocket(ArduinoJson::JsonDocument& document);
+
 };

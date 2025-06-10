@@ -30,7 +30,9 @@ enum ControlType : uint8_t
     Accel,
     Separator,
     Time,
+    FileDisplay,
 
+    Fragment = 98,
     Password = 99,
     UpdateOffset = 100,
 };
@@ -81,23 +83,23 @@ public:
 
     void SendCallback(int type);
     bool HasCallback() { return (nullptr != callback); }
-    void MarshalControl(ArduinoJson::JsonObject& item, bool refresh);
+    bool MarshalControl(ArduinoJson::JsonObject& item, bool refresh, uint32_t DataOffset, uint32_t MaxLength, uint32_t & EstimmatedUsedSpace);
     void MarshalErrorMessage(ArduinoJson::JsonObject& item);
-    bool ToBeDeleted() { return (ControlSyncState_t::deleted == ControlSyncState); }
     void DeleteControl();
-    bool IsUpdated() { return ControlSyncState_t::synchronized != ControlSyncState; }
-    void HasBeenUpdated() { ControlSyncState = ControlSyncState_t::updated; }
-    void HasBeenSynchronized() {ControlSyncState = ControlSyncState_t::synchronized;}
     void onWsEvent(String& cmd, String& data);
+    inline bool ToBeDeleted() { return _ToBeDeleted; }
+    inline bool NeedsSync(uint32_t lastControlChangeID) {return (false == _ToBeDeleted) && (lastControlChangeID < ControlChangeID);}
+    void    SetControlChangedId(uint32_t value) {ControlChangeID = value;}
 
 private:
-    enum ControlSyncState_t
-    {
-        synchronized = 0,
-        updated,
-        deleted,
-    };
-    ControlSyncState_t ControlSyncState = ControlSyncState_t::synchronized;
+    bool _ToBeDeleted = false;
+    uint32_t ControlChangeID = 0;
+    String OldValue = emptyString;
+
+    // multiplier for converting a typical controller label or value to a Json object
+    #define JsonMarshalingRatio 3
+    // Marshaed Control overhead length
+    #define JsonMarshaledOverhead 64
 };
 
 #define UI_TITLE            ControlType::Title

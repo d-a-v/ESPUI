@@ -60,6 +60,11 @@ const UPDATE_SEPARATOR = 119;
 const UI_TIME = 20;
 const UPDATE_TIME = 120;
 
+const UI_FILEDISPLAY = 21;
+const UPDATE_FILEDISPLAY = 121;
+
+const UI_FRAGMENT = 98;
+
 const UP = 0;
 const DOWN = 1;
 const LEFT = 2;
@@ -77,6 +82,8 @@ const C_ALIZARIN = 6;
 const C_DARK = 7;
 const C_NONE = 255;
 
+var controlAssemblyArray = new Object();
+var FragmentAssemblyTimer = new Array();
 var graphData = new Array();
 var hasAccel = false;
 var sliderContinuous = false;
@@ -190,6 +197,12 @@ function restart() {
 }
 
 function conStatusError() {
+    FragmentAssemblyTimer.forEach(element => {
+        clearInterval(element);
+    });
+    FragmentAssemblyTimer = new Array();
+    controlAssemblyArray = new Array();
+
     if (true === websockConnected) {
         websockConnected = false;
         websock.close();
@@ -210,17 +223,20 @@ function handleVisibilityChange() {
 }
 
 function start() {
+    let location = window.location.hostname;
+    let port = window.location.port;
+//    let location = "192.168.10.198";
+//    let port = "";
+
     document.addEventListener("visibilitychange", handleVisibilityChange, false);
     if (
-        window.location.port != "" ||
-        window.location.port != 80 ||
-        window.location.port != 443
+        port != "" ||
+        port != 80 ||
+        port != 443
     ) {
-        websock = new WebSocket(
-            "ws://" + window.location.hostname + ":" + window.location.port + "/ws"
-        );
+        websock = new WebSocket( "ws://" + location + ":" + port + "/ws" );
     } else {
-        websock = new WebSocket("ws://" + window.location.hostname + "/ws");
+        websock = new WebSocket("ws://" + location + "/ws");
     }
 
     // is the timer running?
@@ -241,33 +257,54 @@ function start() {
         $("#conStatus").addClass("color-green");
         $("#conStatus").text("Connected");
         websockConnected = true;
+        FragmentAssemblyTimer.forEach(element => {
+            clearInterval(element);
+        });
+        FragmentAssemblyTimer = new Array();
+        controlAssemblyArray = new Array();
     };
 
     websock.onclose = function (evt) {
+        // console.log("Close evt: '" + evt + "'");
+        // console.log("Close reason: '" + evt.reason + "'");
+        // console.log("Close code: '" + evt.code + "'");
         console.log("websock close");
         conStatusError();
+        FragmentAssemblyTimer.forEach(element => {
+            clearInterval(element);
+        });
+        FragmentAssemblyTimer = new Array();
+        controlAssemblyArray = new Array();
     };
 
     websock.onerror = function (evt) {
         console.log("websock Error");
-        console.log(evt);
+        // console.log("Error evt: '" + evt + "'");
+        // console.log("Error data: '" + evt.data + "'");
 
         restart();
+        FragmentAssemblyTimer.forEach(element => {
+            clearInterval(element);
+        });
+        FragmentAssemblyTimer = new Array();
+        controlAssemblyArray = new Array();
     };
 
     var handleEvent = function (evt) {
-        console.log(evt);
+        // console.log("handleEvent:Data evt: '" + evt + "'");
+        // console.log("handleEvent:Data data: '" + evt.data + "'");
         try {
             var data = JSON.parse(evt.data);
         }
         catch (Event) {
             console.error(Event);
-            // start the update over again
+            // console.info("start the update over again");
             websock.send("uiok:" + 0);
             return;
         }
         var e = document.body;
         var center = "";
+        // console.info("data.type: '" + data.type + "'");
 
         switch (data.type) {
             case UI_INITIAL_GUI:
@@ -279,7 +316,9 @@ function start() {
                 if (data.sliderContinuous) {
                     sliderContinuous = data.sliderContinuous;
                 }
+                // console.info("UI_INITIAL_GUI:data record: '" + data + "'");
                 data.controls.forEach(element => {
+                    // console.info("element: '" + JSON.stringify(element) + "'");
                     var fauxEvent = {
                         data: JSON.stringify(element),
                     };
@@ -295,7 +334,9 @@ function start() {
                 break;
 
             case UI_EXTEND_GUI:
+                // console.info("UI_EXTEND_GUI data record: '" + data + "'");
                 data.controls.forEach(element => {
+                    // console.info("UI_EXTEND_GUI:element: '" + JSON.stringify(element) + "'");
                     var fauxEvent = {
                         data: JSON.stringify(element),
                     };
@@ -329,7 +370,7 @@ function start() {
                 if (data.visible) addToHTML(data);
                 break;
 
-            /*
+                /*
               These elements must call additional functions after being added to the DOM
             */
             case UI_BUTTON:
@@ -527,6 +568,14 @@ function start() {
                 }
                 break;
 
+            case UI_FILEDISPLAY:
+                if (data.visible)
+                {
+                    addToHTML(data);
+                    FileDisplayUploadFile(data);
+                }
+                break;
+    
             /*
              * Update messages change the value/style of a component without adding new HTML
              */
@@ -601,6 +650,99 @@ function start() {
                 websock.send("time:" + rv + ":" + data.id);
                 break;
 
+            case UPDATE_FILEDISPLAY:
+                FileDisplayUploadFile(data);
+                break;
+        
+            case UI_FRAGMENT:
+                // console.info("Starting Fragment Processing");
+                let FragmentLen = data.length;
+                let FragementOffset = data.offset;
+                let NextFragmentOffset = FragementOffset + FragmentLen;
+                let Total = data.total;
+                let Arrived = (FragmentLen + FragementOffset);
+                let FragmentFinal = Total === Arrived;
+                // console.info("UI_FRAGMENT:FragmentLen        '" + FragmentLen + "'");
+                // console.info("UI_FRAGMENT:FragementOffset    '" + FragementOffset + "'");
+                // console.info("UI_FRAGMENT:NextFragmentOffset '" + NextFragmentOffset + "'");
+                // console.info("UI_FRAGMENT:Total              '" + Total + "'");
+                // console.info("UI_FRAGMENT:Arrived            '" + Arrived + "'");
+                // console.info("UI_FRAGMENT:FragmentFinal      '" + FragmentFinal + "'");
+
+                if (!data.hasOwnProperty('control')) 
+                {
+                    console.error("UI_FRAGMENT:Missing control record, skipping control");
+                    // console.info("Done Fragment Processing");
+                    break;
+                }
+                let control = data.control;
+                StopFragmentAssemblyTimer(data.control.id);
+                
+                // is this the first fragment?
+                if(0 === FragementOffset)
+                {
+                    // console.info("Found first fragment");
+                    controlAssemblyArray[control.id] = data;
+                    // console.info("Value: " + controlAssemblyArray[control.id].control.value);
+                    controlAssemblyArray[control.id].offset = NextFragmentOffset;
+                    StartFragmentAssemblyTimer(control.id);
+                    let TotalRequest = JSON.stringify({ 'id' : control.id, 'offset' : NextFragmentOffset });
+                    websock.send("uifragmentok:" + 0 + ": " + TotalRequest + ":");
+                    // console.info("asked for fragment " + TotalRequest);
+                    // console.info("Done Fragment Processing");
+                    break;
+                }
+
+                // not first fragment. are we assembling this control?
+                if("undefined" === typeof controlAssemblyArray[control.id])
+                {
+                    // it looks like we missed the first fragment. Start the control over
+                    console.error("Missing first fragment for control: " + control.id);
+                    StartFragmentAssemblyTimer(control.id);
+                    let TotalRequest = JSON.stringify({ 'id' : control.id, 'offset' : 0 });
+                    websock.send("uifragmentok:" + 0 + ": " + TotalRequest + ":");
+                    // console.info("asked for fragment " + TotalRequest);
+                    // console.info("Done Fragment Processing");
+                    break;
+                }
+                
+                // is this the expected next fragment
+                if(FragementOffset !== controlAssemblyArray[control.id].offset)
+                {
+                    console.error("Wrong next fragment. Expected: " + controlAssemblyArray[control.id].offset + " Got: " + FragementOffset);
+                    StartFragmentAssemblyTimer(control.id);
+                    let TotalRequest = JSON.stringify({ 'id' : control.id, 'offset' : controlAssemblyArray[control.id].length + controlAssemblyArray[control.id].offset });
+                    websock.send("uifragmentok:" + 0 + ": " + TotalRequest + ":");
+                    // console.info("asked for the expected fragment: " + TotalRequest);
+                    // console.info("Done Fragment Processing");
+                    break;
+                }
+
+                // console.info("Add to existing fragment");
+                controlAssemblyArray[control.id].control.value += control.value;
+                controlAssemblyArray[control.id].offset = NextFragmentOffset;
+                // console.info("Value: " + controlAssemblyArray[control.id].control.value);
+
+                if(true === FragmentFinal)
+                {
+                    var fauxEvent = {
+                        data: JSON.stringify(controlAssemblyArray[control.id].control),
+                    };
+                    handleEvent(fauxEvent);
+                    controlAssemblyArray[control.id] = null;
+                    // console.info("Found last fragment");
+                }
+                else
+                {
+                    // console.info("Ask for next fragment.");
+                    StartFragmentAssemblyTimer(control.id);
+                    let TotalRequest = JSON.stringify({ 'id' : control.id, 'offset' : NextFragmentOffset});
+                    websock.send("uifragmentok:" + 0 + ": " + TotalRequest + ":");
+                    // console.info("asked for the next fragment: " + TotalRequest);
+                }
+                // console.info("Done Fragment Processing");
+                break;
+
             default:
                 console.error("Unknown type or event");
                 break;
@@ -648,6 +790,70 @@ function start() {
     };
 
     websock.onmessage = handleEvent;
+}
+
+async function FileDisplayUploadFile(data)
+{
+    let text = await downloadFile(data.value);
+    let ItemToUpdateId = "fd" + data.id;
+    // console.info("ItemToUpdateId: " + ItemToUpdateId);
+    // console.info("          text: " + text);
+    // populate the text object
+    $("#" + ItemToUpdateId).val(text);
+    $("#" + ItemToUpdateId).css("textAlign", "left");
+    $("#" + ItemToUpdateId).css("white-space", "nowrap");
+    $("#" + ItemToUpdateId).css("overflow", "scroll");
+    $("#" + ItemToUpdateId).css("overflow-y", "scroll");
+    $("#" + ItemToUpdateId).css("overflow-x", "scroll");
+    $("#" + ItemToUpdateId).scrollTop($("#" + ItemToUpdateId).val().length);
+
+    // scroll the page to the updated control
+    // $("#" + ItemToUpdateId).focus();
+
+} // FileDisplayUploadFile
+
+async function downloadFile(filename)
+{
+    let response = await fetch(filename);
+		
+	if(response.status != 200) {
+		throw new Error("File Read Server Error: '" + response.status + "'");
+	}
+		
+	// read response stream as text
+	let text_data = await response.text();
+
+	return text_data;
+} // downloadFile
+
+function StartFragmentAssemblyTimer(Id)
+{
+    StopFragmentAssemblyTimer(Id);
+    FragmentAssemblyTimer[Id] = setInterval(function(_Id)
+    {
+        // does the fragment assembly still exist?
+        if("undefined" !== typeof controlAssemblyArray[_Id])
+        {
+            if(null !== controlAssemblyArray[_Id])
+            {
+                // we have a valid control that is being assembled
+                // ask for the next part
+                let TotalRequest = JSON.stringify({ 'id' : controlAssemblyArray[_Id].control.id, 'offset' : controlAssemblyArray[_Id].offset});
+                websock.send("uifragmentok:" + 0 + ": " + TotalRequest + ":");
+            }
+        }
+    }, 1000, Id);
+}
+
+function StopFragmentAssemblyTimer(Id)
+{
+    if("undefined" !== typeof FragmentAssemblyTimer[Id])
+    {
+        if(FragmentAssemblyTimer[Id])
+        {
+            clearInterval(FragmentAssemblyTimer[Id]);
+        }
+    }
 }
 
 function sliderchange(number) {
@@ -780,11 +986,13 @@ var addToHTML = function (data) {
             case UI_GRAPH:
             case UI_GAUGE:
             case UI_ACCEL:
+            case UI_FILEDISPLAY:
                 html = "<div id='id" + data.id + "' " + panelStyle + " class='two columns " + panelwide + " card tcenter " +
                     colorClass(data.color) + "'><h5>" + data.label + "</h5><hr/>" +
                     elementHTML(data) +
                     "</div>";
                 break;
+
             case UI_SEPARATOR:
                 html = "<div id='id" + data.id + "' " + panelStyle + " class='sectionbreak columns'>" +
                     "<h5>" + data.label + "</h5><hr/></div>";
@@ -811,6 +1019,9 @@ var elementHTML = function (data) {
         case UI_LABEL:
             return "<span id='l" + id + "' " + elementStyle +
                 " class='label label-wrap'>" + data.value + "</span>";
+        case UI_FILEDISPLAY:
+            return "<textarea id='fd" + id + "' rows='4' " + elementStyle +
+                " class='label label-wrap'>" + "</textarea>";
         case UI_BUTTON:
             return "<button id='btn" + id + "' " + elementStyle +
                 " onmousedown='buttonclick(" + id + ", true)'" +
@@ -870,8 +1081,6 @@ var elementHTML = function (data) {
     }
 }
 
-
-
 var processEnabled = function (data) {
     //Handle the enabling and disabling of controls
     //Most controls can be disabled through the use of $("#<item>").prop("disabled", true) and CSS will style it accordingly
@@ -917,6 +1126,8 @@ var processEnabled = function (data) {
         case UI_CPAD:
         case UPDATE_PAD:
         case UPDATE_CPAD:
+        case UI_FILEDISPLAY:
+        case UPDATE_FILEDISPLAY:
             if (data.enabled) {
                 $("#id" + data.id + " nav").removeClass('disabled');
             } else {

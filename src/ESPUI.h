@@ -1,11 +1,24 @@
 #pragma once
 
 // comment out to turn off debug output
-#define DEBUG_ESPUI true
+// #define DEBUG_ESPUI true
 #define WS_AUTHENTICATION false
 
 #include <Arduino.h>
+
 #include <ArduinoJson.h>
+#if ARDUINOJSON_VERSION_MAJOR > 6
+    #define AllocateJsonDocument(name, size)    JsonDocument name
+    #define AllocateJsonArray(doc, name)        doc[name].to<JsonArray>()
+    #define AllocateJsonObject(doc)             doc.add<JsonObject>()
+    #define AllocateNamedJsonObject(t, s, n)    t[n] = s
+#else
+    #define AllocateJsonDocument(name, size)    DynamicJsonDocument name(size)
+    #define AllocateJsonArray(doc, name)        doc.createNestedArray(name)
+    #define AllocateJsonObject(doc)             doc.createNestedObject()
+    #define AllocateNamedJsonObject(t, s, n)    t = s.createNestedObject(n)
+#endif
+
 #include <stdlib_noniso.h>
 #ifdef ESP32
 	#if (ESP_IDF_VERSION_MAJOR == 4 && ESP_IDF_VERSION_MINOR >= 4) || ESP_IDF_VERSION_MAJOR > 4
@@ -39,9 +52,9 @@
 #include <emuESPAsyncTCP.h>
 #include <Hash.h>
 
-#define FILE_WRITE "w"
-
 #endif
+
+#define FILE_WRITING "w"
 
 // Message Types (and control types)
 
@@ -92,16 +105,13 @@ enum Verbosity : uint8_t
 class ESPUIClass
 {
 public:
-
-#ifdef ESP32
     ESPUIClass()
     {
+#ifdef ESP32
         ControlsSemaphore = xSemaphoreCreateMutex();
         xSemaphoreGive(ControlsSemaphore);
-    }
-    SemaphoreHandle_t ControlsSemaphore = NULL;
 #endif // def ESP32
-
+	}
     unsigned int jsonUpdateDocumentSize = 2000;
 #ifdef ESP8266
     unsigned int jsonInitialDocumentSize = 2000;
@@ -125,6 +135,7 @@ public:
     void prepareFileSystem(bool format = true); // Initially preps the filesystem and loads a lot of
                               // stuff into LITTLEFS
     void list(); // Lists LITTLEFS directory
+    void writeFile(const char* path, const char* data);
 
     uint16_t addControl(ControlType type, const char* label);
     uint16_t addControl(ControlType type, const char* label, const String& value);
@@ -151,6 +162,7 @@ public:
     uint16_t gauge(const char* label, ControlColor color, int value, int min = 0,
         int max = 100); // Create Gauge display
     uint16_t separator(const char* label); //Create separator
+    uint16_t fileDisplay(const char* label, ControlColor color, String filename);
 
     // Input only
     uint16_t accelerometer(const char* label, std::function<void(Control*, int)> callback, ControlColor color);
@@ -201,8 +213,7 @@ public:
     void jsonDom(uint16_t startidx, AsyncWebSocketClient* client = nullptr, bool Updating = false);
 
     Verbosity verbosity = Verbosity::Quiet;
-    AsyncWebServer* server;
-
+    uint32_t  GetNextControlChangeId();
     // emulate former extended callback API by using an intermediate lambda (no deprecation)
     uint16_t addControl(ControlType type, const char* label, const String& value, ControlColor color, uint16_t parentControl, std::function<void(Control*, int, void*)> callback, void* userData)
     {
@@ -241,12 +252,30 @@ public:
         return accelerometer(label, [callback, userData](Control* sender, int type){ callback(sender, type, userData); }, color);
     }
 
+    AsyncWebServer* WebServer() {return server;}
+    AsyncWebSocket* WebSocket() {return ws;}
+
+#if defined(ESP32)
+#   if (ESP_IDF_VERSION_MAJOR == 4 && ESP_IDF_VERSION_MINOR >= 4) || ESP_IDF_VERSION_MAJOR > 4
+        fs::LittleFSFS & EspuiLittleFS = LittleFS;
+    #else
+        fs::LITTLEFSFS & EspuiLittleFS = LITTLEFS;
+#   endif
+#else
+    fs::FS & EspuiLittleFS = LittleFS;
+#endif
+
 protected:
     friend class ESPUIclient;
     friend class ESPUIcontrol;
 
+#ifdef ESP32
+    SemaphoreHandle_t ControlsSemaphore = NULL;
+#endif // def ESP32
+
     void        RemoveToBeDeletedControls();
 
+    AsyncWebServer* server;
     AsyncWebSocket* ws;
 
     const char* basicAuthUsername = nullptr;
@@ -259,12 +288,12 @@ protected:
 #define ClientUpdateType_t ESPUIclient::ClientUpdateType_t
     void NotifyClients(ClientUpdateType_t newState);
     void NotifyClient(uint32_t WsClientId, ClientUpdateType_t newState);
-    void ClearControlUpdateFlags();
 
-    bool SendJsonDocToWebSocket(ArduinoJson::DynamicJsonDocument& document, uint16_t clientId);
+    bool SendJsonDocToWebSocket(ArduinoJson::JsonDocument& document, uint16_t clientId);
 
     std::map<uint32_t, ESPUIclient*> MapOfClients;
 
+    uint32_t    ControlChangeID = 0;
 };
 
 extern ESPUIClass ESPUI;
