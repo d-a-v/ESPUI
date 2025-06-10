@@ -31,7 +31,7 @@
 #endif
 #include <map>
 
-#ifdefdef ESP32
+#ifdef ESP32
 #include <ESPAsyncWebServer.h>
 #else
 #include <emuESPAsyncWebServer.h>
@@ -166,6 +166,8 @@ public:
 
     // Input only
     uint16_t accelerometer(const char* label, std::function<void(Control*, int)> callback, ControlColor color);
+
+    AsyncWebServer* getServer () const { return server; }
 
     // Update Elements
 
