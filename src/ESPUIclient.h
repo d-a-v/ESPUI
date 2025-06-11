@@ -48,8 +48,8 @@ protected:
 
     bool        CanSend();
     void        FillInHeader(ArduinoJson::JsonDocument& document);
-    uint32_t    prepareJSONChunk(uint16_t startindex, JsonDocument& rootDoc, bool InUpdateMode, String value);
-    bool        SendControlsToClient(uint16_t startidx, ClientUpdateType_t TransferMode, String FragmentRequest);
+    uint32_t    prepareJSONChunk(uint16_t startindex, JsonDocument& rootDoc, bool InUpdateMode, const String& value);
+    bool        SendControlsToClient(uint16_t startidx, ClientUpdateType_t TransferMode, const String& FragmentRequest);
 
     bool        SendClientNotification(ClientUpdateType_t value);
 

@@ -261,7 +261,7 @@ client will acknowledge receipt by requesting the next chunk.
 uint32_t ESPUIclient::prepareJSONChunk(uint16_t startindex,
                                       JsonDocument & rootDoc,
                                       bool InUpdateMode,
-                                      String FragmentRequestString)
+                                      const String& FragmentRequestString)
 {
 #ifdef ESP32
     xSemaphoreTake(ESPUI.ControlsSemaphore, portMAX_DELAY);
@@ -480,7 +480,7 @@ CLIENT: controls.js:handleEvent()
 etc.
     Returns true if all controls have been sent (aka: Done)
 */
-bool ESPUIclient::SendControlsToClient(uint16_t startidx, ClientUpdateType_t TransferMode, String FragmentRequest)
+bool ESPUIclient::SendControlsToClient(uint16_t startidx, ClientUpdateType_t TransferMode, const String& FragmentRequest)
 {
     bool Response = false;
     // Serial.println(String("ESPUIclient:SendControlsToClient:startidx: ") + String(startidx));
